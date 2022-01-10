@@ -1,4 +1,4 @@
-use crate::error;
+use crate::error::{self, handle_result};
 
 use error::SrtError;
 use libsrt_sys as srt;
@@ -120,6 +120,100 @@ impl SrtSocket {
     pub fn listen(&self, backlog: i32) -> Result<()> {
         let result = unsafe { srt::srt_listen(self.id, backlog) };
         error::handle_result((), result)
+    }
+    pub fn bistats(&self) -> Result<srt::SRT_TRACEBSTATS> {
+        let mut stats = srt::SRT_TRACEBSTATS {
+            msTimeStamp: 0,
+            pktSentTotal: 0,
+            pktRecvTotal: 0,
+            pktSndLossTotal: 0,
+            pktRcvLossTotal: 0,
+            pktRetransTotal: 0,
+            pktSentACKTotal: 0,
+            pktRecvACKTotal: 0,
+            pktSentNAKTotal: 0,
+            pktRecvNAKTotal: 0,
+            usSndDurationTotal: 0,
+            pktSndDropTotal: 0,
+            pktRcvDropTotal: 0,
+            pktRcvUndecryptTotal: 0,
+            byteSentTotal: 0,
+            byteRecvTotal: 0,
+            byteRcvLossTotal: 0,
+            byteRetransTotal: 0,
+            byteSndDropTotal: 0,
+            byteRcvDropTotal: 0,
+            byteRcvUndecryptTotal: 0,
+            pktSent: 0,
+            pktRecv: 0,
+            pktSndLoss: 0,
+            pktRcvLoss: 0,
+            pktRetrans: 0,
+            pktRcvRetrans: 0,
+            pktSentACK: 0,
+            pktRecvACK: 0,
+            pktSentNAK: 0,
+            pktRecvNAK: 0,
+            mbpsSendRate: 0.0,
+            mbpsRecvRate: 0.0,
+            usSndDuration: 0,
+            pktReorderDistance: 0,
+            pktRcvAvgBelatedTime: 0.0,
+            pktRcvBelated: 0,
+            pktSndDrop: 0,
+            pktRcvDrop: 0,
+            pktRcvUndecrypt: 0,
+            byteSent: 0,
+            byteRecv: 0,
+            byteRcvLoss: 0,
+            byteRetrans: 0,
+            byteSndDrop: 0,
+            byteRcvDrop: 0,
+            byteRcvUndecrypt: 0,
+            usPktSndPeriod: 0.0,
+            pktFlowWindow: 0,
+            pktCongestionWindow: 0,
+            pktFlightSize: 0,
+            msRTT: 0.0,
+            mbpsBandwidth: 0.0,
+            byteAvailSndBuf: 0,
+            byteAvailRcvBuf: 0,
+            mbpsMaxBW: 0.0,
+            byteMSS: 0,
+            pktSndBuf: 0,
+            byteSndBuf: 0,
+            msSndBuf: 0,
+            msSndTsbPdDelay: 0,
+            pktRcvBuf: 0,
+            byteRcvBuf: 0,
+            msRcvBuf: 0,
+            msRcvTsbPdDelay: 0,
+            pktSndFilterExtraTotal: 0,
+            pktRcvFilterExtraTotal: 0,
+            pktRcvFilterSupplyTotal: 0,
+            pktRcvFilterLossTotal: 0,
+            pktSndFilterExtra: 0,
+            pktRcvFilterExtra: 0,
+            pktRcvFilterSupply: 0,
+            pktRcvFilterLoss: 0,
+            pktReorderTolerance: 0,
+            pktSentUniqueTotal: 0,
+            pktRecvUniqueTotal: 0,
+            byteSentUniqueTotal: 0,
+            byteRecvUniqueTotal: 0,
+            pktSentUnique: 0,
+            pktRecvUnique: 0,
+            byteSentUnique: 0,
+            byteRecvUnique: 0,
+        };
+        let result = unsafe {
+            srt::srt_bstats(
+                self.id,
+                &mut stats,
+                1
+            )
+        };
+        handle_result(stats, result)
     }
 }
 
@@ -1081,11 +1175,38 @@ impl SrtSocket {
         error::handle_result((), result)
     }
     pub fn set_retransmission_algorithm(&self, reduced: bool) -> Result<()> {
+        let r = if reduced {
+            1
+        } else {
+            0
+        };
         let result = unsafe {
             srt::srt_setsockflag(
                 self.id,
                 srt::SRT_SOCKOPT::SRTO_RETRANSMITALGO,
-                &reduced as *const bool as *const c_void,
+                &r as *const i32 as *const c_void,
+                mem::size_of::<i32>() as c_int,
+            )
+        };
+        error::handle_result((), result)
+    }
+    pub fn set_latency(&self, latency: i32) -> Result<()> {
+        let result = unsafe {
+            srt::srt_setsockflag(
+                self.id,
+                srt::SRT_SOCKOPT::SRTO_LATENCY,
+                &latency as *const i32 as *const c_void,
+                mem::size_of::<i32>() as c_int,
+            )
+        };
+        error::handle_result((), result)
+    }
+    pub fn set_sender(&self, sender: bool) -> Result<()> {
+        let result = unsafe {
+            srt::srt_setsockflag(
+                self.id,
+                srt::SRT_SOCKOPT::SRTO_SENDER,
+                &sender as *const bool as *const c_void,
                 mem::size_of::<bool>() as c_int,
             )
         };
@@ -1144,8 +1265,8 @@ impl SrtSocket {
             srt::srt_setsockflag(
                 self.id,
                 srt::SRT_SOCKOPT::SRTO_STREAMID,
-                id[..512].as_ptr() as *const c_void,
-                id[..512].len() as i32,
+                id.as_ptr() as *const c_void,
+                id.len() as i32,
             )
         };
         error::handle_result((), result)
